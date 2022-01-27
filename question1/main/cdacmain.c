@@ -3,10 +3,9 @@
 #include<freertos/task.h>
 #include<freertos/queue.h>
 
-xQueueHandle xQueue;//Queue Handlers
-TaskHandle_t xHandle_1;//Task Handlers
+xQueueHandle xQueue;
+TaskHandle_t xHandle_1;
 TaskHandle_t xHandle_2;
-TaskHandle_t xHandle_3;
 
 void task1(void *pv)
 {
@@ -26,74 +25,45 @@ void task3(void *pv)
 	vTaskDelay(5000/portTICK_PERIOD_MS);
 }
 
-static void vsenderTask(void *pv)
+void sensortask_1(void *pv)
 {
-	long lvaluetosend;
-	portBASE_TYPE xstatus;
-	lvaluetosend=(long)pv;
-	for(int i=0;i<5;i++)
-	{
-		xstatus=xQueueSendToBack(xQueue,&lvaluetosend,0);
-		if(xstatus!=pdPASS)
-		{
-			vPrintString("Could not send data\n");
-		}
-	taskYIELD();
-	}
+    int sensor_data=0;
+    while(1)
+    {
+        sensor_data++;
+        printf("SENSOR TASK  RUNNING:%d\n",sensor_data);
+        xQueueSend(queue,&sensor_data,portMAX_DELAY);
+        vTaskDelay(1000/ portTICK_PERIOD_MS);
+    }
 }
-static void vreceiveTask(void *pv)
+void Alarmtask_1(void *pv)
 {
-	long lrecievevalue;
-	portBASE_TYPE xstatus;
-	const portTickTYpe xTickToWait = 100/portTICK_RATE_MS;
-	for(int i=0;i<5;i++)
-	{
-		if(uxQueueMessageWaiting(xQueue)!=0)
-		{
-			vPrintString("Queue should have been empty\n");	
-		}
-		xstatus=xQueueReceive(xQueue,&lrecievevalue,xTickToWait);
-		if(xstatus == pdPASS)
-		{
-			vPrintString("Received= \n",lrecievevalue);//RECEIVE INTEGER VALUE
-		}
-		else
-		{
-			vPrintString("Queue not recieve data from queue\n");
-		}
-	}
+    int rece_data=0; 
+    while(1)
+    {
+        //printf("ALARM TASK  RUNNING: %d\n",rece_data);
+        xQueueReceive(queue,&rece_data,portMAX_DELAY);
+        printf("RECEIVED DATA %d\n",rece_data);
+        vTaskDelay(1000/ portTICK_PERIOD_MS);
+    }
 }
 void app_main()
 {
-	
-    	BaseType_t result; 
-    	result = xTaskCreate(task1,"task1",1024,NULL,5,&xHandle_1); 
-    	if(result == pdPASS)
-    	{
-        	printf("Task1 created\n");
-    	}
-     	result = xTaskCreate(task2,"task2",1024,NULL,6,&xHandle_2); 
-    	if(result == pdPASS)
-    	{
-        	printf("Task2 created\n");
-    	}
-     	result = xTaskCreate(task3,"task3",1024,NULL,7,&xHandle_3); 
-    	if(result == pdPASS)
-    	{
-       	printf("Task3 created\n");
-    	}
-    	xQueue=xQueueCreate(5,sizeof(long));
-	if(xQueue!=NULL)
-	{
-		xTaskCreate(vsenderTask,"Sender1",1024,(void *)100,8,NULL); 
-		xTaskCreate(vsenderTask,"Sender2",1024,(void *)200,9,NULL); 
-		
-		xTaskCreate(vreceiveTask,"Receiver",1024,NULL,12,NULL);
-		vTaskStartScheduler();
-	}
-	else
-	{
-		printf("Queue could not be created\n");
-	} 
-	for(;;)	
+    queue=xQueueCreate(4,sizeof(int));
+    BaseType_t result;
+     result=xTaskCreate(task1,"task1",2048,NULL,9,NULL);
+      result=xTaskCreate(task2,"task2",2048,NULL,9,NULL);
+       result=xTaskCreate(task3,"task3",2048,NULL,9,NULL);
+    result=xTaskCreate(sensortask_1,"sensortask_1",2048,NULL,8,&xHandle_1);
+
+    if(result==pdPASS)
+    {
+        printf("sensortask created\n");
+    }
+    result=xTaskCreate(Alarmtask_1,"Alarmtask_1",2048,NULL,9,&xHandle_2);
+
+    if(result==pdPASS)
+    {
+        printf("Alarmtask created\n");
+    }
 }
